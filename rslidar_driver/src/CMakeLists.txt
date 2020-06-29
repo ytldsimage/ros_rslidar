@@ -1,9 +1,10 @@
-add_library(rslidar_input input.cc)
+add_definitions(-fPIC)
+add_library(rslidar_input STATIC input.cc)
 target_link_libraries(rslidar_input
   ${catkin_LIBRARIES}
   ${libpcap_LIBRARIES})
 
-add_library(rslidar_driver rsdriver.cpp)
+add_library(rslidar_driver STATIC rsdriver.cpp)
 target_link_libraries(rslidar_driver
   rslidar_input
   ${catkin_LIBRARIES})
@@ -23,8 +24,14 @@ endif()
 
 target_link_libraries(rslidar_node
 	rslidar_driver
-  rslidar_input
 	${catkin_LIBRARIES}
 	${libpcap_LIBRARIES}
 )
+
+install(TARGETS rslidar_node
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 

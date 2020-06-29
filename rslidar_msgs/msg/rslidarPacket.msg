@@ -1,5 +1,5 @@
 # Raw LIDAR packet.
 
 time stamp              # packet timestamp
-uint8[1248] data        # packet contents
+uint8[1400] data        # packet contents
 

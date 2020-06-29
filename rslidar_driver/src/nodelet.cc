@@ -1,5 +1,6 @@
 /*
- *  Copyright (C) 2018-2020 Robosense Authors
+ *  Copyright (C) 2012 Austin Robot Technology, Jack O'Quin
+ *
  *  License: Modified BSD Software License Agreement
  *
  *  $Id$
@@ -7,7 +8,7 @@
 
 /** \file
  *
- *  ROS driver nodelet for the Robosense 3D LIDARs
+ *  ROS driver nodelet for the RSLIDAR 3D LIDARs
  */
 
 #include <string>
@@ -21,7 +22,7 @@
 
 volatile sig_atomic_t flag = 1;
 
-namespace rslidar_driver
+namespace rs_driver
 {
 class DriverNodelet : public nodelet::Nodelet
 {
@@ -34,10 +35,10 @@ public:
   {
     if (running_)
     {
-      NODELET_INFO("[driver][nodelet] shutting down driver thread");
+      NODELET_INFO("shutting down driver thread");
       running_ = false;
       deviceThread_->join();
-      NODELET_INFO("[driver][nodelet] sdriver thread stopped");
+      NODELET_INFO("driver thread stopped");
     }
   }
 
@@ -75,4 +76,4 @@ void DriverNodelet::devicePoll()
 // Register this plugin with pluginlib.  Names must match nodelet_rslidar.xml.
 //
 // parameters are: class type, base class type
-PLUGINLIB_EXPORT_CLASS(rslidar_driver::DriverNodelet, nodelet::Nodelet)
+PLUGINLIB_EXPORT_CLASS(rs_driver::DriverNodelet, nodelet::Nodelet)

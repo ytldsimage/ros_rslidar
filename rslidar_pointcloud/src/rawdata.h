@@ -1,5 +1,9 @@
-/*
- *  Copyright (C) 2018-2020 Robosense Authors
+/* -*- mode: C++ -*-
+ *
+ *  Copyright (C) 2007 Austin Robot Technology, Yaxin Liu, Patrick Beeson
+ *  Copyright (C) 2009, 2010, 2012 Austin Robot Technology, Jack O'Quin
+ *	Copyright (C) 2017 Robosense, Tony Zhang
+ *
  *  License: Modified BSD Software License Agreement
  *
  *  $Id$
@@ -7,92 +11,54 @@
 
 /** @file
  *
- *  @brief Interfaces for interpreting raw packets from the Robosense 3D LIDAR.
+ *  @brief Interfaces for interpreting raw packets from the Velodyne 3D LIDAR.
  *
+ *  @author Yaxin Liu
+ *  @author Patrick Beeson
+ *  @author Jack O'Quin
+ *	@author Tony Zhang
  */
 
 #ifndef _RAWDATA_H
 #define _RAWDATA_H
 
-#include <ros/ros.h>
+#include "std_msgs/String.h"
+#include <pcl/point_types.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl_ros/impl/transforms.hpp>
+#include <pcl_ros/point_cloud.h>
 #include <ros/package.h>
+#include <ros/ros.h>
 #include <rslidar_msgs/rslidarPacket.h>
 #include <rslidar_msgs/rslidarScan.h>
-#include "std_msgs/String.h"
-#include <std_msgs/Float32.h>
-#include <pcl/point_types.h>
-#include <pcl_ros/point_cloud.h>
-#include <pcl_ros/impl/transforms.hpp>
-#include <pcl_conversions/pcl_conversions.h>
-#include <stdio.h>
+//#include "filter4s4.h"
+
 namespace rslidar_rawdata
 {
-// static const float  ROTATION_SOLUTION_ = 0.18f;  //水平角分辨率 10hz
-static const int SIZE_BLOCK = 100;
-static const int RAW_SCAN_SIZE = 3;
-static const int SCANS_PER_BLOCK = 32;
-static const int BLOCK_DATA_SIZE = (SCANS_PER_BLOCK * RAW_SCAN_SIZE);  // 96
 
-static const float ROTATION_RESOLUTION = 0.01f;   /**< degrees 旋转角分辨率*/
-static const uint16_t ROTATION_MAX_UNITS = 36000; /**< hundredths of degrees */
+static const float ANGLE_RESOLUTION = 0.01f; /**< degrees */
 
-static const float DISTANCE_MAX = 200.0f;            /**< meters */
-static const float DISTANCE_MIN = 0.4f;              /**< meters */
-static const float DISTANCE_RESOLUTION = 0.01f;      /**< meters */
-static const float DISTANCE_RESOLUTION_NEW = 0.005f; /**< meters */
+static const float DISTANCE_MAX = 200.0f;       /**< meters */
+static const float DISTANCE_MIN = 0.5f;         /**< meters */
+static const float DISTANCE_RESOLUTION = 0.01f; /**< meters */
 static const float DISTANCE_MAX_UNITS = (DISTANCE_MAX / DISTANCE_RESOLUTION + 1.0f);
-/** @todo make this work for both big and little-endian machines */
-static const uint16_t UPPER_BANK = 0xeeff;  //
-static const uint16_t LOWER_BANK = 0xddff;
 
-/** Special Defines for RS16 support **/
-static const int RS16_FIRINGS_PER_BLOCK = 2;
-static const int RS16_SCANS_PER_FIRING = 16;
-static const float RS16_BLOCK_TDURATION = 100.0f;  // [µs]
-static const float RS16_DSR_TOFFSET = 3.0f;        // [µs]
-static const float RS16_FIRING_TOFFSET = 50.0f;    // [µs]
-
-/** Special Defines for RS32 support **/
-static const int RS32_FIRINGS_PER_BLOCK = 1;
-static const int RS32_SCANS_PER_FIRING = 32;
-static const float RS32_BLOCK_TDURATION = 50.0f;  // [µs]
-static const float RS32_DSR_TOFFSET = 3.0f;       // [µs]
-static const float RL32_FIRING_TOFFSET = 50.0f;   // [µs]
-
-static const int TEMPERATURE_MIN = 31;
-
-#define RS_TO_RADS(x) ((x) * (M_PI) / 180)
-/** \brief Raw rslidar data block.
- *
- *  Each block contains data from either the upper or lower laser
- *  bank.  The device returns three times as many upper bank blocks.
- *
- *  use stdint.h types, so things work with both 64 and 32-bit machines
- */
-// block
-typedef struct raw_block
-{
-  uint16_t header;  ///< UPPER_BANK or LOWER_BANK
-  uint8_t rotation_1;
-  uint8_t rotation_2;  /// combine rotation1 and rotation2 together to get 0-35999, divide by 100 to get degrees
-  uint8_t data[BLOCK_DATA_SIZE];  // 96
-} raw_block_t;
-
+/** Special Defines for MEMS support **/
+static const int MEMS_BLOCKS_PER_PACKET = 25;
+static const int MEMS_SCANS_PER_FIRING = 6;
+static const int POINT_COUNT_PER_VIEWFIELD = 15750;
 /** used for unpacking the first two data bytes in a block
  *
  *  They are packed into the actual data stream misaligned.  I doubt
  *  this works on big endian machines.
  */
-union two_bytes
-{
-  uint16_t uint;
-  uint8_t bytes[2];
-};
+// union two_bytes {
+//  uint16_t uint;
+//  uint8_t bytes[2];
+//};
 
-static const int PACKET_SIZE = 1248;
-static const int BLOCKS_PER_PACKET = 12;
-static const int PACKET_STATUS_SIZE = 4;
-static const int SCANS_PER_PACKET = (SCANS_PER_BLOCK * BLOCKS_PER_PACKET);
+static const int PACKET_SIZE = 1400;
+static const int PACKET_STATUS_SIZE = 80;
 
 /** \brief Raw Rsldar packet.
  *
@@ -106,12 +72,49 @@ static const int SCANS_PER_PACKET = (SCANS_PER_BLOCK * BLOCKS_PER_PACKET);
  *
  *  status has either a temperature encoding or the microcode level
  */
-typedef struct raw_packet
+
+// MEMS channel return
+typedef struct raw_mems_channel
 {
-  raw_block_t blocks[BLOCKS_PER_PACKET];
-  uint16_t revolution;
+  uint16_t intensity_1;
+  uint16_t distance_1;
+  uint16_t intensity_2;
+  uint16_t distance_2;
+} raw_mems_channel_t;
+
+// MEMS block
+typedef struct raw_mems_block
+{
+  uint16_t pitch;
+  uint16_t yaw;
+  raw_mems_channel_t channel[MEMS_SCANS_PER_FIRING];
+} raw_mems_block_t;
+
+// MEMS timestamp
+typedef struct raw_mems_timestamp
+{
+  uint8_t year;
+  uint8_t month;
+  uint8_t day;
+  uint8_t hour;
+  uint8_t minute;
+  uint8_t second;
+  uint16_t ms;
+  uint16_t us;
+}raw_mems_timestamp_t;
+
+// MEMS packet
+typedef struct raw_mems_packet
+{
+  uint8_t sync[4];
+  uint8_t cmd[4];
+  int8_t temp;
+  uint8_t reserved;
+  raw_mems_timestamp_t timestamp;
+  raw_mems_block_t blocks[MEMS_BLOCKS_PER_PACKET];
   uint8_t status[PACKET_STATUS_SIZE];
-} raw_packet_t;
+} raw_mems_packet_t;
+
 
 /** \brief RSLIDAR data conversion class */
 class RawData
@@ -121,79 +124,46 @@ public:
 
   ~RawData()
   {
-    this->cos_lookup_table_.clear();
-    this->sin_lookup_table_.clear();
+    this->tan_lookup_table_.clear();
   }
 
-  /*load the cablibrated files: angle, distance, intensity*/
+  /*load the cablibrated files: ChannelNum, limit, look-up table for pitch*/
   void loadConfigFile(ros::NodeHandle node, ros::NodeHandle private_nh);
 
-  /*unpack the RS16 UDP packet and opuput PCL PointXYZI type*/
-  void unpack(const rslidar_msgs::rslidarPacket& pkt, pcl::PointCloud<pcl::PointXYZI>::Ptr pointcloud);
+  /*unpack the MEMS UDP packet and opuput PCL PointXYZI type*/
+  void unpack_MEMS(const rslidar_msgs::rslidarPacket& pkt, pcl::PointCloud<pcl::PointXYZI>::Ptr pointcloud);
 
-  /*unpack the RS32 UDP packet and opuput PCL PointXYZI type*/
-  void unpack_RS32(const rslidar_msgs::rslidarPacket& pkt, pcl::PointCloud<pcl::PointXYZI>::Ptr pointcloud);
-
-  /*compute temperature*/
-  float computeTemperature(unsigned char bit1, unsigned char bit2);
-
-  /*estimate temperature*/
-  int estimateTemperature(float Temper);
-
-  /*calibrated the disctance*/
-  float pixelToDistance(int pixelValue, int passageway);
-
-  /*calibrated the azimuth*/
-  int correctAzimuth(float azimuth_f, int passageway);
-
-  /*calibrated the intensity*/
-  float calibrateIntensity(float inten, int calIdx, int distance);
-  float calibrateIntensity_old(float inten, int calIdx, int distance);
-
-  /*estimate the packet type*/
-  int isABPacket(int distance);
-
-  void processDifop(const rslidar_msgs::rslidarPacket::ConstPtr& difop_msg);
-  ros::Subscriber difop_sub_;
-  ros::Publisher temperature_pub_;
-  bool is_init_curve_;
-  bool is_init_angle_;
-  bool is_init_top_fw_;
-  int block_num = 0;
-  int intensity_mode_;
-  int intensityFactor;
+  /*convert the deg */
+  float pitchConvertDeg(int deg); 
+  float yawConvertDeg(int deg);
+  
+  /*calibrated the disctance for mems */
+  float pixelToDistance(int distance, int dsr); 
 
 private:
-  float Rx_;  // the optical center position in the lidar coordination in x direction
-  float Ry_;  // the optical center position in the lidar coordination in y direction, for now not used
-  float Rz_;  // the optical center position in the lidar coordination in z direction
-  int start_angle_;
-  int end_angle_;
-  float max_distance_;
-  float min_distance_;
-  int dis_resolution_mode_;
-  int return_mode_;
-  bool info_print_flag_;
-  bool isBpearlLidar_;
-  bool angle_flag_;
+  int channel_num_[MEMS_SCANS_PER_FIRING];
+  int real_slow_[27780];
+  float pitch_rate_;
+  float yaw_rate_;
+  float pitch_offset_[MEMS_SCANS_PER_FIRING];
+  float yaw_offset_[MEMS_SCANS_PER_FIRING];
+  float yaw_limit_start_[MEMS_SCANS_PER_FIRING];
+  float yaw_limit_end_[MEMS_SCANS_PER_FIRING];
+  float distance_max_thd_;
+  float distance_min_thd_;
 
-  /* cos/sin lookup table */
-  std::vector<double> cos_lookup_table_;
-  std::vector<double> sin_lookup_table_;
+  uint32_t point_idx_;
+  int last_pitch_index_;
+  int skip_block_;
+  int last_pkt_index_;
+
+  /* tan lookup table */
+  std::vector<float> tan_lookup_table_;
+
+  Eigen::Matrix<float, 3, 5> input_ref_;
+  Eigen::Matrix<float, 3, 3> rotate_gal_;
+  ros::Publisher temp_output_;
 };
-
-static int VERT_ANGLE[32];
-static int HORI_ANGLE[32];
-static float aIntensityCal[7][32];
-static float aIntensityCal_old[1600][32];
-static bool Curvesis_new = true;
-static int g_ChannelNum[32][51];
-static float CurvesRate[32];
-
-static float temper = 31.0;
-static int tempPacketNum = 0;
-static int numOfLasers = 16;
-static int TEMPERATURE_RANGE = 40;
 }  // namespace rslidar_rawdata
 
 #endif  // __RAWDATA_H

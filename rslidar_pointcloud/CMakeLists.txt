@@ -27,7 +27,11 @@ include_directories(${catkin_INCLUDE_DIRS}
 generate_dynamic_reconfigure_options(cfg/CloudNode.cfg)
 
 catkin_package(
-        CATKIN_DEPENDS ${${PROJECT_NAME}_CATKIN_DEPS}
-)
+    CATKIN_DEPENDS ${${PROJECT_NAME}_CATKIN_DEPS}
+    )
 
 add_subdirectory(src)
+
+install(DIRECTORY rviz_cfg
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  )

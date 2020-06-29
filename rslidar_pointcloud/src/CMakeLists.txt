@@ -1,9 +1,10 @@
-add_library(rslidar_data rawdata.cc)
+add_definitions(-fPIC)
+add_library(rslidar_data STATIC rawdata.cc)
 target_link_libraries(rslidar_data
     ${catkin_LIBRARIES}
     ${libpcap_LIBRARIES})
 
-add_library(rslidar_point convert.cc)
+add_library(rslidar_point STATIC convert.cc)
 target_link_libraries(rslidar_point
     rslidar_data
     ${catkin_LIBRARIES})
@@ -23,3 +24,11 @@ target_link_libraries(cloud_node
     rslidar_point
     ${catkin_LIBRARIES}
     ${libpcap_LIBRARIES})
+
+
+install(TARGETS cloud_node
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+

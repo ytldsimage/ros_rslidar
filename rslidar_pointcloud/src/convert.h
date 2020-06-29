@@ -1,5 +1,9 @@
+/* -*- mode: C++ -*- */
 /*
- *  Copyright (C) 2018-2020 Robosense Authors
+ *  Copyright (C) 2009, 2010 Austin Robot Technology, Jack O'Quin
+ *  Copyright (C) 2011 Jesse Vera
+ *  Copyright (C) 2012 Austin Robot Technology, Jack O'Quin
+ *  Copyright (C) 2017 Robosense, Tony Zhang
  *  License: Modified BSD Software License Agreement
  *
  *  $Id$
@@ -18,29 +22,30 @@
 #include <rslidar_pointcloud/CloudNodeConfig.h>
 #include "rawdata.h"
 
-namespace rslidar_pointcloud
-{
-class Convert
-{
-public:
-  Convert(ros::NodeHandle node, ros::NodeHandle private_nh);
+namespace rslidar_pointcloud {
+    class Convert {
+    public:
 
-  ~Convert()
-  {
-  }
+        Convert(ros::NodeHandle node, ros::NodeHandle private_nh);
 
-private:
-  void callback(rslidar_pointcloud::CloudNodeConfig& config, uint32_t level);
+        ~Convert() {}
 
-  void processScan(const rslidar_msgs::rslidarScan::ConstPtr& scanMsg);
+    private:
 
-  /// Pointer to dynamic reconfigure service srv_
-  boost::shared_ptr<dynamic_reconfigure::Server<rslidar_pointcloud::CloudNodeConfig> > srv_;
+        void callback(rslidar_pointcloud::CloudNodeConfig &config,
+                      uint32_t level);
 
-  boost::shared_ptr<rslidar_rawdata::RawData> data_;
-  ros::Subscriber rslidar_scan_;
-  ros::Publisher output_;
-};
+        void processScan(const rslidar_msgs::rslidarScan::ConstPtr &scanMsg);
 
-}  // namespace rslidar_pointcloud
+        ///Pointer to dynamic reconfigure service srv_
+        boost::shared_ptr<dynamic_reconfigure::Server<rslidar_pointcloud::
+        CloudNodeConfig> > srv_;
+
+        pcl::PointCloud<pcl::PointXYZI>::Ptr out_points;
+        boost::shared_ptr<rslidar_rawdata::RawData> data_;
+        ros::Subscriber rslidar_scan_;
+        ros::Publisher point_output_;
+    };
+
+}//namespace rslidar_pointcloud
 #endif
